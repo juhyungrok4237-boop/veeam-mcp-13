@@ -118,11 +118,6 @@ MCP_TRANSPORT_MODE=stdio
 
 # ─── HTTP 포트 (streamable-http 모드 전용) ───────────────
 MCP_HTTP_PORT=3000
-
-# ─── Stateless 모드 (streamable-http 전용) ───────────────
-# true: 세션 없이 요청마다 독립 처리 (Dify 무상태 연동에 유리)
-# false(기본): 세션 ID로 상태 유지
-MCP_STATELESS=false
 ```
 
 | 변수 | 필수 | 기본값 | 설명 |
@@ -134,7 +129,6 @@ MCP_STATELESS=false
 | `NODE_TLS_REJECT_UNAUTHORIZED` | - | `1` | `0`=자체 서명 인증서 허용 |
 | `MCP_TRANSPORT_MODE` | - | `stdio` | `stdio` 또는 `streamable-http` |
 | `MCP_HTTP_PORT` | - | `3000` | HTTP 모드 포트 |
-| `MCP_STATELESS` | - | `false` | `true`=Stateless 모드 (세션 없음) |
 
 ---
 
@@ -221,10 +215,7 @@ MCP_TRANSPORT_MODE=streamable-http MCP_HTTP_PORT=3000 npm start
 # 방법 3: PowerShell (Windows)
 $env:MCP_TRANSPORT_MODE="streamable-http"; $env:MCP_HTTP_PORT="3000"; npm start
 
-# 방법 4: Stateless 모드로 실행 (Dify 권장)
-$env:MCP_TRANSPORT_MODE="streamable-http"; $env:MCP_STATELESS="true"; npm start
-
-# 방법 5: 개발 모드 (빌드 없이 직접 실행)
+# 방법 4: 개발 모드 (빌드 없이 직접 실행)
 $env:MCP_TRANSPORT_MODE="streamable-http"; npm run dev
 ```
 
@@ -232,12 +223,10 @@ $env:MCP_TRANSPORT_MODE="streamable-http"; npm run dev
 
 ```
 [MCP] Loaded 328 tools from 328 unique names.
-[MCP] Starting Streamable HTTP mode on port 3000 (stateless=false)...
+[MCP] Starting Streamable HTTP mode on port 3000 (stateless multi-client)...
 [MCP] Streamable HTTP server listening on http://0.0.0.0:3000
-[MCP]   MCP endpoint : POST http://localhost:3000/mcp
-[MCP]   SSE stream   : GET  http://localhost:3000/mcp  (with Mcp-Session-Id)
-[MCP]   Session end  : DELETE http://localhost:3000/mcp (with Mcp-Session-Id)
-[MCP]   Health       : GET  http://localhost:3000/health
+[MCP]   MCP endpoint : /mcp
+[MCP]   Health       : /health
 [MCP] → Configure Dify with URL: http://<your-host>:3000/mcp
 ```
 
@@ -246,9 +235,7 @@ $env:MCP_TRANSPORT_MODE="streamable-http"; npm run dev
 | Method | Path | 헤더 | 설명 |
 |--------|------|------|------|
 | `POST` | `/mcp` | `Content-Type: application/json` | 메인 JSON-RPC 채널 (초기화 + 도구 호출) |
-| `GET` | `/mcp` | `Mcp-Session-Id: <id>` | 서버 → 클라이언트 SSE 알림 스트림 |
-| `DELETE` | `/mcp` | `Mcp-Session-Id: <id>` | 세션 명시적 종료 |
-| `GET` | `/health` | - | 서버 상태 및 활성 세션 수 확인 |
+| `GET` | `/health` | - | 서버 상태 및 가동 확인 |
 
 ### Dify에서 연동하기
 
