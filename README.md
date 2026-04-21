@@ -114,7 +114,7 @@ NODE_TLS_REJECT_UNAUTHORIZED=0
 # ─── MCP 전송 모드 ───────────────────────────────────────
 # stdio            : Claude Desktop, Cursor 등 로컬 AI 클라이언트용
 # streamable-http  : Dify, 원격 AI 에이전트용 (MCP 2025-03-26 스펙)
-MCP_TRANSPORT_MODE=stdio
+MCP_TRANSPORT_MODE=streamable-http
 
 # ─── HTTP 포트 (streamable-http 모드 전용) ───────────────
 MCP_HTTP_PORT=3000
