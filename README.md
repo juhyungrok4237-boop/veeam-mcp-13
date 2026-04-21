@@ -77,8 +77,8 @@ swagger.json 기준 **39개 태그, 404개 API Operations** 중 의미 있는 **
 
 ```bash
 # 1. 리포지토리 클론
-git clone https://github.com/<your-username>/veeam-mcp-self.git
-cd veeam-mcp-self
+git clone https://github.com/<your-username>/veeam-mcp-13.git
+cd veeam-mcp-13
 
 # 2. 의존성 설치
 npm install
