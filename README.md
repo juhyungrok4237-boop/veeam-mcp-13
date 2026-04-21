@@ -198,7 +198,7 @@ npx @modelcontextprotocol/inspector node build/index.js
 
 ## 🌐 실행 방법 - SSE (HTTP) 모드
 
-**SSE 모드**는 MCP 서버가 **Express HTTP 서버**로 독립 실행되며, AI 클라이언트가 **Server-Sent Events(SSE)**로 연결하여 통신하는 방식입니다. 원격 서버에 배포하거나, 여러 AI 클라이언트가 네트워크를 통해 동시에 접속할 때 사용합니다.
+**SSE 모드**는 MCP 서버가 **Express HTTP 서버**로 독립 실행되며, AI 클라이언트가 Server-Sent Events(SSE)로 연결하여 통신하는 방식입니다. 원격 서버에 배포하거나, 여러 AI 클라이언트가 네트워크를 통해 동시에 접속할 때 사용합니다.
 
 ### 서버 실행
 
