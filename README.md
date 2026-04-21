@@ -375,31 +375,6 @@ veeam-mcp-self/
 
 이 프로젝트는 [Apache License 2.0](LICENSE)를 따릅니다
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+https://www.apache.org/licenses/LICENSE-2.0.txt
 
 > Veeam® 및 Veeam Backup & Replication®은 Veeam Software Group GmbH의 등록 상표입니다. 이 프로젝트는 Veeam과 공식적으로 제휴되거나 보증되지 않습니다.
