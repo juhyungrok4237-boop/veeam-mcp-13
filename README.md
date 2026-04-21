@@ -19,7 +19,7 @@ swagger.json 기준 **39개 태그, 404개 API Operations** 중 의미 있는 **
 - [설치 및 빌드](#-설치-및-빌드)
 - [환경 변수 설정](#-환경-변수-설정)
 - [실행 방법 - stdio 모드](#-실행-방법---stdio-모드)
-- [실행 방법 - SSE (HTTP) 모드](#-실행-방법---sse-http-모드)
+- [실행 방법 - Streamable HTTP 모드 (Dify 연동)](#-실행-방법---streamable-http-모드-dify-연동)
 - [지원되는 도구 카테고리](#-지원되는-도구-카테고리-총-328-tools)
 - [프로젝트 구조](#-프로젝트-구조)
 - [프롬프트 활용 예시](#-프롬프트-활용-예시)
@@ -30,10 +30,11 @@ swagger.json 기준 **39개 태그, 404개 API Operations** 중 의미 있는 **
 ## 🌟 주요 기능
 
 - **328개 MCP Tools**: Veeam REST API의 거의 모든 기능 포괄
-- **듀얼 전송 모드**: `stdio` (로컬 AI 클라이언트) + `sse` (HTTP 원격 연동) 동시 지원
+- **듀얼 전송 모드**: `stdio` (Claude Desktop/Cursor) + `streamable-http` (Dify/원격 에이전트)
+- **MCP 2025-03-26 최신 스펙 준수**: Streamable HTTP 전송 방식 구현 (Dify 완전 호환)
 - **스마트 OAuth2 인증**: 자동 토큰 발급, 만료 전 갱신, 401 시 자동 재인증
 - **완전 모듈화**: 13개 파일로 기능별 분리 → 유지보수 및 확장 용이
-- **다중 SSE 세션 지원**: 여러 AI 클라이언트가 동시에 HTTP 모드로 접속 가능
+- **Stateful/Stateless 선택**: 세션 상태 유지(기본) 또는 상태 비저장 모드 선택 가능
 
 ---
 
@@ -111,12 +112,17 @@ VEEAM_PASSWORD=YourPasswordHere
 NODE_TLS_REJECT_UNAUTHORIZED=0
 
 # ─── MCP 전송 모드 ───────────────────────────────────────
-# stdio : Claude Desktop, Cursor 등 로컬 AI 클라이언트용
-# sse   : HTTP 기반 원격 AI 에이전트 연동용
+# stdio            : Claude Desktop, Cursor 등 로컬 AI 클라이언트용
+# streamable-http  : Dify, 원격 AI 에이전트용 (MCP 2025-03-26 스펙)
 MCP_TRANSPORT_MODE=stdio
 
-# ─── HTTP 포트 (SSE 모드 전용) ────────────────────────────
+# ─── HTTP 포트 (streamable-http 모드 전용) ───────────────
 MCP_HTTP_PORT=3000
+
+# ─── Stateless 모드 (streamable-http 전용) ───────────────
+# true: 세션 없이 요청마다 독립 처리 (Dify 무상태 연동에 유리)
+# false(기본): 세션 ID로 상태 유지
+MCP_STATELESS=false
 ```
 
 | 변수 | 필수 | 기본값 | 설명 |
@@ -126,8 +132,9 @@ MCP_HTTP_PORT=3000
 | `VEEAM_USERNAME` | ✅ | - | Veeam 관리자 계정 |
 | `VEEAM_PASSWORD` | ✅ | - | Veeam 관리자 비밀번호 |
 | `NODE_TLS_REJECT_UNAUTHORIZED` | - | `1` | `0`=자체 서명 인증서 허용 |
-| `MCP_TRANSPORT_MODE` | - | `stdio` | `stdio` 또는 `sse` |
-| `MCP_HTTP_PORT` | - | `3000` | SSE 모드 HTTP 포트 |
+| `MCP_TRANSPORT_MODE` | - | `stdio` | `stdio` 또는 `streamable-http` |
+| `MCP_HTTP_PORT` | - | `3000` | HTTP 모드 포트 |
+| `MCP_STATELESS` | - | `false` | `true`=Stateless 모드 (세션 없음) |
 
 ---
 
@@ -196,52 +203,72 @@ npx @modelcontextprotocol/inspector node build/index.js
 
 ---
 
-## 🌐 실행 방법 - SSE (HTTP) 모드
+## 🌐 실행 방법 - Streamable HTTP 모드 (Dify 연동)
 
-**SSE 모드**는 MCP 서버가 **Express HTTP 서버**로 독립 실행되며, AI 클라이언트가 Server-Sent Events(SSE)로 연결하여 통신하는 방식입니다. 원격 서버에 배포하거나, 여러 AI 클라이언트가 네트워크를 통해 동시에 접속할 때 사용합니다.
+> **⚠️ 중요**: 기존 구버전 `HTTP+SSE` 방식(`/sse`, `/messages` 분리 엔드포인트)은 **MCP 2024-11-05 기준 Deprecated**되었습니다.  
+> Dify 및 최신 MCP 클라이언트는 **MCP 2025-03-26 Streamable HTTP** 스펙을 사용합니다.  
+> 이 서버는 최신 스펙을 완전히 구현한 **단일 `/mcp` 엔드포인트**를 제공합니다.
 
 ### 서버 실행
 
 ```bash
-# 방법 1: .env 파일에 MCP_TRANSPORT_MODE=sse 설정 후
+# 방법 1: .env 파일에 MCP_TRANSPORT_MODE=streamable-http 설정 후
 npm start
 
-# 방법 2: 환경변수를 인라인으로 지정 (Linux/Mac)
-MCP_TRANSPORT_MODE=sse MCP_HTTP_PORT=3000 npm start
+# 방법 2: 환경변수 인라인 지정 (Linux/Mac)
+MCP_TRANSPORT_MODE=streamable-http MCP_HTTP_PORT=3000 npm start
 
 # 방법 3: PowerShell (Windows)
-$env:MCP_TRANSPORT_MODE="sse"; $env:MCP_HTTP_PORT="3000"; npm start
+$env:MCP_TRANSPORT_MODE="streamable-http"; $env:MCP_HTTP_PORT="3000"; npm start
 
-# 방법 4: 개발 모드 (빌드 없이 직접 실행)
-$env:MCP_TRANSPORT_MODE="sse"; npm run dev
+# 방법 4: Stateless 모드로 실행 (Dify 권장)
+$env:MCP_TRANSPORT_MODE="streamable-http"; $env:MCP_STATELESS="true"; npm start
+
+# 방법 5: 개발 모드 (빌드 없이 직접 실행)
+$env:MCP_TRANSPORT_MODE="streamable-http"; npm run dev
 ```
 
 ### 서버 실행 시 출력 예시
 
 ```
 [MCP] Loaded 328 tools from 328 unique names.
-[MCP] Starting HTTP/SSE mode on port 3000...
-[MCP] HTTP server listening on http://0.0.0.0:3000
-[MCP]   SSE endpoint : GET  http://localhost:3000/sse
-[MCP]   Messages     : POST http://localhost:3000/messages?sessionId=<id>
+[MCP] Starting Streamable HTTP mode on port 3000 (stateless=false)...
+[MCP] Streamable HTTP server listening on http://0.0.0.0:3000
+[MCP]   MCP endpoint : POST http://localhost:3000/mcp
+[MCP]   SSE stream   : GET  http://localhost:3000/mcp  (with Mcp-Session-Id)
+[MCP]   Session end  : DELETE http://localhost:3000/mcp (with Mcp-Session-Id)
 [MCP]   Health       : GET  http://localhost:3000/health
+[MCP] → Configure Dify with URL: http://<your-host>:3000/mcp
 ```
 
 ### HTTP 엔드포인트
 
-| Method | Path | 설명 |
-|--------|------|------|
-| `GET` | `/sse` | SSE 연결 수립 (클라이언트가 이 URL로 EventSource 연결) |
-| `POST` | `/messages?sessionId=<id>` | JSON-RPC 메시지 전송 (세션 ID는 SSE 연결 시 할당) |
-| `GET` | `/health` | 서버 상태 확인 (활성 세션 수 등) |
+| Method | Path | 헤더 | 설명 |
+|--------|------|------|------|
+| `POST` | `/mcp` | `Content-Type: application/json` | 메인 JSON-RPC 채널 (초기화 + 도구 호출) |
+| `GET` | `/mcp` | `Mcp-Session-Id: <id>` | 서버 → 클라이언트 SSE 알림 스트림 |
+| `DELETE` | `/mcp` | `Mcp-Session-Id: <id>` | 세션 명시적 종료 |
+| `GET` | `/health` | - | 서버 상태 및 활성 세션 수 확인 |
 
-### Claude Desktop에서 SSE 모드 연동
+### Dify에서 연동하기
+
+1. Dify **도구 관리** → **MCP 서버 추가** 클릭
+2. MCP 서버 URL 입력:
+   ```
+   http://<your-server-ip>:3000/mcp
+   ```
+3. **저장** 후 도구 목록에서 Veeam 도구 확인
+
+> **Docker 환경 주의사항**: Dify와 이 서버가 모두 Docker로 실행 중이라면,  
+> `localhost` 대신 **Docker 네트워크 내 호스트 IP** 또는 컨테이너 이름을 사용하세요.
+
+### Claude Desktop에서 Streamable HTTP 모드 연동
 
 ```json
 {
   "mcpServers": {
     "veeam-vbr-remote": {
-      "url": "http://192.168.1.200:3000/sse"
+      "url": "http://192.168.1.200:3000/mcp"
     }
   }
 }
@@ -257,25 +284,29 @@ curl http://localhost:3000/health
 ```json
 {
   "status": "ok",
-  "mode": "sse",
+  "transport": "streamable-http",
+  "stateless": false,
   "activeSessions": 1,
-  "server": "veeam-vbr-mcp v2.0.0"
+  "server": "veeam-vbr-mcp v2.0.0",
+  "mcpEndpoint": "http://localhost:3000/mcp"
 }
 ```
 
 ---
 
-## 🔧 stdio vs SSE 비교
+## 🔧 stdio vs Streamable HTTP 비교
 
-| 항목 | stdio 모드 | SSE (HTTP) 모드 |
-|------|-----------|----------------|
+| 항목 | stdio 모드 | Streamable HTTP 모드 |
+|------|-----------|---------------------|
 | **실행 주체** | AI 클라이언트가 자식 프로세스로 실행 | 독립 서버로 미리 실행 |
-| **통신 방식** | stdin/stdout (표준 입출력) | HTTP + Server-Sent Events |
+| **통신 방식** | stdin/stdout (표준 입출력) | HTTP POST/GET/DELETE `/mcp` |
+| **MCP 스펙** | 최신 (stdio는 스펙 무관) | MCP 2025-03-26 Streamable HTTP |
 | **네트워크** | 로컬 전용 | 원격 접속 가능 |
-| **다중 클라이언트** | 1:1 (한 클라이언트만) | N:1 (여러 클라이언트 동시) |
+| **다중 클라이언트** | 1:1 (한 클라이언트만) | N:M (여러 클라이언트 동시) |
+| **Dify 연동** | ❌ 불가 | ✅ 가능 (`/mcp` URL 입력) |
 | **설정 난이도** | 쉬움 (JSON 설정만) | 서버 실행 + URL 지정 |
-| **적합한 상황** | 개인 PC에서 Claude Desktop 사용 | 서버에 배포하여 팀 공유 |
-| **환경변수** | `MCP_TRANSPORT_MODE=stdio` (기본값) | `MCP_TRANSPORT_MODE=sse` |
+| **적합한 상황** | 개인 PC Claude Desktop/Cursor | Dify, 팀 공유, 원격 배포 |
+| **환경변수** | `MCP_TRANSPORT_MODE=stdio` (기본값) | `MCP_TRANSPORT_MODE=streamable-http` |
 
 ---
 
@@ -304,7 +335,7 @@ curl http://localhost:3000/health
 ```
 veeam-mcp-self/
 ├── src/
-│   ├── index.ts              # 진입점 (stdio/SSE 모드 분기)
+│   ├── index.ts              # 진입점 (stdio / Streamable HTTP 모드 분기)
 │   ├── server.ts             # McpServer 인스턴스 + 동적 Tool 등록
 │   ├── veeamClient.ts        # Axios 클라이언트 + OAuth2 자동 갱신
 │   ├── types/
